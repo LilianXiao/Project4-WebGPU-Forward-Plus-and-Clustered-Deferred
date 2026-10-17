@@ -1,6 +1,6 @@
 // CHECKITOUT: you can use this vertex shader for all of the renderers
 
-// TODO-1.3: add a uniform variable here for camera uniforms (of type CameraUniforms)
+// 1.3: add a uniform variable here for camera uniforms (of type CameraUniforms)
 // make sure to use ${bindGroup_scene} for the group
 @group(${bindGroup_scene}) @binding(0) var<uniform> cameraUniforms: CameraUniforms;
 
