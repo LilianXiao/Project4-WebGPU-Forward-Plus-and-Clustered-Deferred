@@ -178,19 +178,19 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
                 label: "fullscreen scene bind group",
                 layout: this.fullscreenSceneBindGroupLayout,
                 entries: [
-                    { // position
+                    { // camera
                         binding: 0,
                         resource: {
                             buffer: this.camera.uniformsBuffer
                         }
                     },
-                    { // normal
+                    { // light set
                         binding: 1,
                         resource: {
                             buffer: this.lights.lightSetStorageBuffer
                         }
                     },
-                    { // albedo
+                    { // cluster set
                         binding: 2,
                         resource: {
                             buffer: this.lights.clusterSetStorageBuffer

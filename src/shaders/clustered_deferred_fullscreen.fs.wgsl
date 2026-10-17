@@ -31,6 +31,5 @@ fn main(@builtin(position) fragPos: vec4f) -> @location(0) vec4f {
         totalLightContrib += calculateLightContrib(light, pos, normalize(nor));
     }
 
-    //return vec4(albedo.rgb * totalLightContrib, 1.0);
-    return vec4f(1.0, 0.0, 1.0, 1.0);
+    return vec4(albedo.rgb * totalLightContrib, 1.0);
 }

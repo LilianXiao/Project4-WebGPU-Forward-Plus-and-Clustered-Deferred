@@ -43,3 +43,27 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
     return light.color * lambert * rangeAttenuation(distToLight);
 }
+
+fn getClusterIdx(fragCoord: vec2f, posWorld: vec3f, camera: CameraUniforms) -> u32 {
+    // fun cluster stuff
+    let X = ${clusterCountX}u;
+    let Y = ${clusterCountY}u;
+    let Z = ${clusterCountZ}u;
+
+    // find the screen tile (xy plane)
+    let XY = vec2u(
+        fragCoord / camera.screenSize * vec2f(f32(X), f32(Y))
+    );
+    let tX = min(XY.x, X - 1u);
+    let tY = min(XY.y, Y - 1u);
+
+    // find depth slice (z)
+    let near = camera.near;
+    let far = camera.far;
+    let vZ = -(camera.viewMat * vec4f(posWorld, 1.0)).z;
+
+    let slice = u32(max(log(vZ / near) / log(far / near) * f32(Z), 0.0));
+    let tZ = min(slice, Z - 1u);
+
+    return tX + tY * X + tZ * X * Y;
+}

@@ -47,7 +47,7 @@ export const constants = {
 
 // =================================
 
-function evalShaderRaw(raw: string) {
+function evalShaderRaw(raw: string): string {
     // approved TA fix for renderer working on local server but not on pages
     return raw.replace(
         /\$\{(\w+)\}/g,
