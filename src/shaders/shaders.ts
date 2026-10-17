@@ -30,7 +30,19 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // Building a grid for clustering
+    clusterCountX: 16,
+    clusterCountY: 9,
+    clusterCountZ: 24,
+
+    // you can adjust this value to be higher, especially if you see a tiling effect.
+    // the tiling effect lightly occurs when the clusters overflow
+    // (like doing 2000+ lights with <300 lights per cluster)
+    // this might cost some memory and make things slightly slower
+    maxLightsInCluster: 512,
+    clusteringGroupSize: [4, 4, 4]
 };
 
 // =================================
