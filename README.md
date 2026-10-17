@@ -12,9 +12,9 @@ Intel(R) Arc(TM) Graphics (128 MB) (Personal Laptop)
 
 See the live Github page [here](https://lilianxiao.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred/).
 
-### Demo Video/GIF
+### Deferred Clustered Renderer Demo Video
 
-[![](img/video.mp4)](TODO)
+https://github.com/user-attachments/assets/a0487931-3bd7-49ab-a0d1-9f09c3ff3879
 
 ## Exploring different rendering techniques with WebGPU
 
