@@ -69,13 +69,29 @@ Using the painting and rendering as a good approximate for the frame counter, th
 
 ### G-Buffer Optimization
 
-Currently, the g-buffer stores 72 bytes of data per pixel, distributed as: position (16 bytes), normals (8 bytes), and albedo (4 bytes), with additional padding.  A useful optimization would then be to reduce a lot of this unnecessary space.  The optimization goal is to fit everything into one rg32uint texture, which will be 8 bytes per pixel.
+Currently, the g-buffer stores 72 bytes of data per pixel, distributed as: position (16 bytes), normals (8 bytes), and albedo (4 bytes), with additional padding.  A useful optimization would then be to reduce a lot of this unnecessary space.  The optimization goal is to fit everything into one rg32uint texture, which will be 8 bytes per pixel.  Normals are packed using octahedral encoding; that is, the sphere is mapped onto an octahedron, then unwrapped into a square, and the 2D position there is taken.  Using packing then allows for everything to be compacted into a 32 bit number.  This overall reduces memory bandwith, and as it completely bypasses the fullscreen shader pass.
 
-Deferred clustered renderer with single lighting compute shader optimization and toon shader post processing
+### Toon Shader
 
-<img width="1273" height="943" alt="image" src="https://github.com/user-attachments/assets/91955251-786a-4f90-bd16-90f27354fb45" />
+The toon shader composes an extra lighting pass that writes to an rgba16float texture.  Ramp shading is another word for cel shading; the brightness of each pixel is considered relative to the luminance weight.  Depth-edge outlines are created by using the depth of a pixel and converting it to linear view-space distance.  We will see in the following performance assessment about the potential effects of introducing this additional pass.
 
-In comparison with the base deferred renderer, the most current renderer experienced very little frame drops.  The optimized renderer is actually doing more work per frame due to the addition of the toon shader, which is interesting.
+Deferred clustered renderer with single lighting compute shader optimization and toon shader post processing (5000 lights)
+
+<img width="619" height="461" alt="image" src="https://github.com/user-attachments/assets/857c1440-90aa-4527-b43b-b9044b0a86ee" />
+
+Deferred clustered renderer with optimization and no post processing (5000 lights)
+
+<img width="617" height="446" alt="image" src="https://github.com/user-attachments/assets/88a726e5-579c-4baf-b95f-27a624032f79" />
+
+Base deferred clustered renderer (5000 lights)
+
+<img width="1233" height="903" alt="image" src="https://github.com/user-attachments/assets/bb841865-54f8-4989-b4f3-91f194cd776d" />
+
+<img width="604" height="372" alt="image" src="https://github.com/user-attachments/assets/c1240cbd-1db0-4e12-a920-ee2002d8aa49" />
+
+This demonstrates a couple of things.  There is an observable slowdown with the optimized version that has the toon shader, which is reasonable because it's a complete pass over each pixel.  A nontrivial amount of work is being done, which cannot be said for the base deferred renderer.
+
+At 5000 lights, there isn't really an observably huge difference between the base renderer and the optimized renderer.  It is possible that due to an intermediate texture pass through, or the fat that the lighting loop of a pixel is still very long, the optimization benefits aren't exactly clear.
 
 ### Credits
 
