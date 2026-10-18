@@ -71,6 +71,12 @@ Using the painting and rendering as a good approximate for the frame counter, th
 
 Currently, the g-buffer stores 72 bytes of data per pixel, distributed as: position (16 bytes), normals (8 bytes), and albedo (4 bytes), with additional padding.  A useful optimization would then be to reduce a lot of this unnecessary space.  The optimization goal is to fit everything into one rg32uint texture, which will be 8 bytes per pixel.
 
+Deferred clustered renderer with single lighting compute shader optimization and toon shader post processing
+
+<img width="1273" height="943" alt="image" src="https://github.com/user-attachments/assets/91955251-786a-4f90-bd16-90f27354fb45" />
+
+In comparison with the base deferred renderer, the most current renderer experienced very little frame drops.  The optimized renderer is actually doing more work per frame due to the addition of the toon shader, which is interesting.
+
 ### Credits
 
 - [Vite](https://vitejs.dev/)
