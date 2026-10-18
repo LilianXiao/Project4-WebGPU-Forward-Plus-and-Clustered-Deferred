@@ -91,6 +91,13 @@ Base deferred clustered renderer (5000 lights)
 
 <img width="604" height="372" alt="image" src="https://github.com/user-attachments/assets/c1240cbd-1db0-4e12-a920-ee2002d8aa49" />
 
+Comparisons summarized:
+
+| Metric | Base deferred | Optimized, no toon | Optimized + toon |
+|---|---|---|---|
+| Painting (ms/s) | 5.03 | 4.52 | 3.94 |
+| Rendering (ms/s) | 2.64 | 2.54 | 1.98 |
+
 This demonstrates a couple of things.  There is an observable slowdown with the optimized version that has the toon shader, which is reasonable because it's a complete pass over each pixel.  A nontrivial amount of work is being done, which cannot be said for the base deferred renderer.
 
 At 5000 lights, there isn't really an observably huge difference between the base renderer and the optimized renderer.  It is possible that due to an intermediate texture pass through, or the fat that the lighting loop of a pixel is still very long, the optimization benefits aren't exactly clear.
