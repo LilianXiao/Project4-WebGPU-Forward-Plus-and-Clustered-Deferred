@@ -9,18 +9,20 @@
 @group(1) @binding(1) var gNormal: texture_2d<f32>;
 @group(1) @binding(2) var gAlbedo: texture_2d<f32>;
 
+// after optimization, this shader pass becomes negligible!
 @fragment
 fn main(@builtin(position) fragPos: vec4f) -> @location(0) vec4f {
     let coord = vec2i(fragPos.xy);
-    let albedo = textureLoad(gAlbedo, coord, 0);
-
-    // background
-    if (albedo.a == 0.0) {
+    let depth = textureLoad(gDepth, coord, 0);
+    if (depth >= 1.0) {
         return vec4f(0.0, 0.0, 0.0, 1.0);
     }
 
-    let pos = textureLoad(gPosition, coord, 0).xyz;
-    let nor = textureLoad(gNormal, coord, 0).xyz;
+    let g = textureLoad(gBuffer, coord, 0);
+    let albedo = unpack4x8unorm(g.y).rgb;
+    let pos = transformWorldPos(fragPos.xy, depth, cameraUniforms);
+    let nor = octDecode(unpack2x16snorm(g.x));
+
     let clusterIdx = getClusterIdx(fragPos.xy, pos, cameraUniforms);
     let numLights = clusterSet.clusters[clusterIdx].numLights;
 

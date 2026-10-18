@@ -9,71 +9,63 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
     gBufferSceneBindGroupLayout: GPUBindGroupLayout;
     gBufferSceneBindGroup: GPUBindGroup;
     gBufferPipeline: GPURenderPipeline;
+    // lighting compute pass
+    lightingSceneBindGroupLayout: GPUBindGroupLayout;
+    lightingTexturesBindGroup: GPUBindGroup;
+    lightingSceneBindGroup: GPUBindGroup;
+    lightingTexturesBindGroupLayout: GPUBindGroupLayout;
+    lightingComputePipeline: GPUComputePipeline;
+    // post process layout
+    postBindGroupLayout: GPUBindGroupLayout;
 
     // G buffer textures
-    gPositionTexture: GPUTexture;
-    gPositionTextureView: GPUTextureView;
-    gNormalTexture: GPUTexture;
-    gNormalTextureView: GPUTextureView;
-    gAlbedoTexture: GPUTexture;
-    gAlbedoTextureView: GPUTextureView;
+    // used to be position, normal, and albedo
+    // but for optimization, turn to just one field
+    gBufferTexture: GPUTexture;
+    gBufferTextureView: GPUTextureView;
+
+    // post processing textures
+    litTexture: GPUTexture;
+    litTextureView: GPUTextureView;
+    postPipeline: GPUComputePipeline;
 
     depthTexture: GPUTexture;
     depthTextureView: GPUTextureView;
-
-
-    // Fullscreen pass
-    fullscreenSceneBindGroupLayout: GPUBindGroupLayout;
-    fullscreenSceneBindGroup: GPUBindGroup;
-    gBufferTexturesBindGroupLayout: GPUBindGroupLayout;
-    gBufferTexturesBindGroup: GPUBindGroup;
-    fullscreenPipeline: GPURenderPipeline;
 
     constructor(stage: Stage) {
         super(stage);
 
         const size = [renderer.canvas.width, renderer.canvas.height];
-        const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
 
-        this.gPositionTexture = renderer.device.createTexture(
+        this.gBufferTexture = renderer.device.createTexture(
             {
-                label: "g-position",
+                label: "g-buffer packed",
                 size,
-                format: "rgba32float",
-                usage: usage
+                format: "rg32uint",
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
             }
         );
-        this.gPositionTextureView = this.gPositionTexture.createView();
-
-        this.gNormalTexture = renderer.device.createTexture(
-            {
-                label: "g-normal",
-                size,
-                format: "rgba16float",
-                usage: usage
-            }
-        );
-        this.gNormalTextureView = this.gNormalTexture.createView();
-
-        this.gAlbedoTexture = renderer.device.createTexture(
-            {
-                label: "g-albedo",
-                size,
-                format: "rgba8unorm",
-                usage: usage
-            }
-        );
-        this.gAlbedoTextureView = this.gAlbedoTexture.createView();
+        this.gBufferTextureView = this.gBufferTexture.createView();
 
         this.depthTexture = renderer.device.createTexture(
             {
                 label: "deferred depth",
                 size,
                 format: "depth24plus",
-                usage: GPUTextureUsage.RENDER_ATTACHMENT
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
             }
         );
         this.depthTextureView = this.depthTexture.createView();
+
+        this.litTexture = renderer.device.createTexture(
+            {
+                label: "lit color",
+                size,
+                format: "rgba16float",
+                usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
+            }
+        );
+        this.litTextureView = this.litTexture.createView();
 
         // G buffer pass
         this.gBufferSceneBindGroupLayout = renderer.device.createBindGroupLayout(
@@ -136,61 +128,65 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
                 fragment: {
                     module: renderer.device.createShaderModule(
                         {
-                            label: "g-buffer frag shader",
+                            label: "packed g-buffer frag shader",
                             code: shaders.clusteredDeferredFragSrc
                         }
                     ), 
                     targets: [
-                        { format: "rgba32float" },
-                        { format: "rgba16float" },
-                        { format: "rgba8unorm" }
+                        { format: "rg32uint" }
                     ]
                 }
             }
         );
 
-        // fullscreen pass
-        this.fullscreenSceneBindGroupLayout = renderer.device.createBindGroupLayout(
+        // replace fullscreen pass with single lighting compute pass
+        this.lightingSceneBindGroupLayout = renderer.device.createBindGroupLayout(
             {
-                label: "fullscreen scene bind group layout",
+                label: "lighting scene bind group layout",
                 entries: [
                     { // camera
                         binding: 0,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        buffer: { type: "uniform" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: {
+                            type: "uniform"
+                        }
                     },
                     { // light set
                         binding: 1,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        buffer: { type: "read-only-storage" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: {
+                            type: "read-only-storage"
+                        }
                     },
                     { // cluster set
                         binding: 2,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        buffer: { type: "read-only-storage" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: {
+                            type: "read-only-storage"
+                        }
                     }
                 ]
             }
-        )
+        );
 
-        this.fullscreenSceneBindGroup = renderer.device.createBindGroup(
+        this.lightingSceneBindGroup = renderer.device.createBindGroup(
             {
-                label: "fullscreen scene bind group",
-                layout: this.fullscreenSceneBindGroupLayout,
+                label: "lighting scene bind group",
+                layout: this.lightingSceneBindGroupLayout,
                 entries: [
-                    { // camera
+                    {
                         binding: 0,
                         resource: {
                             buffer: this.camera.uniformsBuffer
                         }
                     },
-                    { // light set
+                    {
                         binding: 1,
                         resource: {
                             buffer: this.lights.lightSetStorageBuffer
                         }
                     },
-                    { // cluster set
+                    {
                         binding: 2,
                         resource: {
                             buffer: this.lights.clusterSetStorageBuffer
@@ -200,80 +196,132 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
             }
         );
 
-        this.gBufferTexturesBindGroupLayout = renderer.device.createBindGroupLayout(
+        this.lightingTexturesBindGroupLayout = renderer.device.createBindGroupLayout(
             {
-                label: "g-buffer textures bind group layout",
+                label: "lighting textures bind group layout",
                 entries: [
-                    {
+                    { // packed normal + albedo
                         binding: 0,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        texture: { sampleType: "unfilterable-float" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        texture: {
+                            sampleType: "uint"
+                        }
                     },
-                    {
+                    { // depth
                         binding: 1,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        texture: { sampleType: "unfilterable-float" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        texture: {
+                            sampleType: "depth"
+                        }
                     },
-                    {
+                    { // lit texture
                         binding: 2,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        texture: { sampleType: "unfilterable-float" }
+                        visibility: GPUShaderStage.COMPUTE,
+                        storageTexture: {
+                            access: "write-only",
+                            format: "rgba16float"
+                        }
                     }
                 ]
             }
         );
 
-        this.gBufferTexturesBindGroup = renderer.device.createBindGroup(
+        this.lightingTexturesBindGroup = renderer.device.createBindGroup(
             {
-                label: "g-buffer textures bind group",
-                layout: this.gBufferTexturesBindGroupLayout,
+                label: "lighting textures bind group",
+                layout: this.lightingTexturesBindGroupLayout,
                 entries: [
                     {
                         binding: 0,
-                        resource: this.gPositionTextureView
-                    }, 
+                        resource: this.gBufferTextureView
+                    },
                     {
                         binding: 1,
-                        resource: this.gNormalTextureView
+                        resource: this.depthTextureView
                     },
                     {
                         binding: 2,
-                        resource: this.gAlbedoTextureView
+                        resource: this.litTextureView
                     }
                 ]
             }
         );
 
-        this.fullscreenPipeline = renderer.device.createRenderPipeline(
+        this.lightingComputePipeline = renderer.device.createComputePipeline(
             {
-                label: "fullscreen pipeline",
+                label: "deferred lighting compute pipeline",
                 layout: renderer.device.createPipelineLayout(
                     {
-                        label: "fullscreen pipeline layout",
+                        label: "deferred lighting pipeline layout",
                         bindGroupLayouts: [
-                            this.fullscreenSceneBindGroupLayout,
-                            this.gBufferTexturesBindGroupLayout
+                            this.lightingSceneBindGroupLayout,
+                            this.lightingTexturesBindGroupLayout
                         ]
                     }
-                ), 
-                vertex: {
+                ),
+                compute: {
                     module: renderer.device.createShaderModule(
                         {
-                            label: "fullscreen vert shader",
-                            code: shaders.clusteredDeferredFullscreenVertSrc
+                            label: "deferred lighting compute shader",
+                            code: shaders.clusteredDeferredLightingComputeSrc
                         }
-                    )
-                },
-                fragment: {
+                    ),
+                    entryPoint: "main"
+                }
+            }
+        );
+
+        // post process layout
+        this.postBindGroupLayout = renderer.device.createBindGroupLayout(
+            {
+                label: "toon post bind group layout",
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: { type: "uniform" }
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.COMPUTE,
+                        texture: { sampleType: "unfilterable-float" }
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.COMPUTE,
+                        texture: { sampleType: "depth" }
+                    },
+                    {
+                        binding: 3,
+                        visibility: GPUShaderStage.COMPUTE,
+                        storageTexture: {
+                            access: "write-only",
+                            format: "rgba8unorm"
+                        }
+                    }
+                ]
+            }
+        );
+
+        this.postPipeline = renderer.device.createComputePipeline(
+            {
+                label: "toon post pipeline",
+                layout: renderer.device.createPipelineLayout(
+                    {
+                        label: "toon post pipeline layout",
+                        bindGroupLayouts: [
+                            this.postBindGroupLayout
+                        ]
+                    }
+                ),
+                compute: {
                     module: renderer.device.createShaderModule(
                         {
-                            label: "fullscreen frag shader",
-                            code: shaders.clusteredDeferredFullscreenFragSrc
+                            label: "toon post compute shader",
+                            code: shaders.toonPostComputeSrc
                         }
                     ), 
-                    targets: [
-                        { format: renderer.canvasFormat }
-                    ]
+                    entryPoint: "main"
                 }
             }
         );
@@ -296,19 +344,7 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
                 label: "g-buffer pass",
                 colorAttachments: [
                     {
-                        view: this.gPositionTextureView,
-                        clearValue: [0, 0, 0, 0],
-                        loadOp: "clear",
-                        storeOp: "store"
-                    }, 
-                    {
-                        view: this.gNormalTextureView,
-                        clearValue: [0, 0, 0, 0],
-                        loadOp: "clear",
-                        storeOp: "store"
-                    },
-                    {
-                        view: this.gAlbedoTextureView,
+                        view: this.gBufferTextureView,
                         clearValue: [0, 0, 0, 0],
                         loadOp: "clear",
                         storeOp: "store"
@@ -338,28 +374,65 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
 
         gPass.end();
 
-        // final pass (fullscreen lighting)
-        const canvasTextureView = renderer.context.getCurrentTexture().createView();
-        const fsPass = encoder.beginRenderPass(
+        const lightingPass = encoder.beginComputePass(
             {
-                label: "fullscreen pass",
-                colorAttachments: [
+                label: "deferred lighting pass"
+            }
+        );
+
+        lightingPass.setPipeline(this.lightingComputePipeline);
+        lightingPass.setBindGroup(0, this.lightingSceneBindGroup);
+        lightingPass.setBindGroup(1, this.lightingTexturesBindGroup);
+        lightingPass.dispatchWorkgroups(
+            Math.ceil(renderer.canvas.width / 8), 
+            Math.ceil(renderer.canvas.height / 8)
+        );
+
+        lightingPass.end();
+
+        // post processing pass
+        const canvasTextureView = renderer.context.getCurrentTexture().createView();
+        const postBindGroup = renderer.device.createBindGroup(
+            {
+                label: "toon post bind group",
+                layout: this.postBindGroupLayout,
+                entries: [
                     {
-                        view: canvasTextureView,
-                        clearValue: [0, 0, 0, 0],
-                        loadOp: "clear",
-                        storeOp: "store"
+                        binding: 0,
+                        resource: {
+                            buffer: this.camera.uniformsBuffer
+                        }
+                    },
+                    {
+                        binding: 1,
+                        resource: this.litTextureView
+                    },
+                    {
+                        binding: 2,
+                        resource: this.depthTextureView
+                    },
+                    {
+                        binding: 3,
+                        resource: canvasTextureView
                     }
                 ]
             }
         );
 
-        fsPass.setPipeline(this.fullscreenPipeline);
-        fsPass.setBindGroup(0, this.fullscreenSceneBindGroup);
-        fsPass.setBindGroup(1, this.gBufferTexturesBindGroup);
+        const postPass = encoder.beginComputePass(
+            {
+                label: "toon post pass"
+            }
+        );
         
-        fsPass.draw(3);
-        fsPass.end();
+        postPass.setPipeline(this.postPipeline);
+        postPass.setBindGroup(0, postBindGroup);
+        postPass.dispatchWorkgroups(
+            Math.ceil(renderer.canvas.width / 8),
+            Math.ceil(renderer.canvas.height / 8)
+        );
+
+        postPass.end();
 
         renderer.device.queue.submit([encoder.finish()]);
     }

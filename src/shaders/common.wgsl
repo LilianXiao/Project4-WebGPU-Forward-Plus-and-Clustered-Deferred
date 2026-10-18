@@ -19,8 +19,9 @@ struct CameraUniforms {
     invProjMat: mat4x4f, // offset 128; 64
     screenSize: vec2f, // offset 192; 8
     near: f32, // offset 200
-    far: f32 // offset 204
-} // 208
+    far: f32, // offset 204
+    invViewProjMat: mat4x4f // offset 208 (to transform pixel depth back to world space)
+} // 272
 
 struct Cluster {
     numLights: u32,
@@ -66,4 +67,43 @@ fn getClusterIdx(fragCoord: vec2f, posWorld: vec3f, camera: CameraUniforms) -> u
     let tZ = min(slice, Z - 1u);
 
     return tX + tY * X + tZ * X * Y;
+}
+
+// for additional g-buffer optimization
+// using octahedral normal encoding, the sphere can be mapped onto an octahedron
+// this is then unwrapped into a square and we store the 2d position in the square
+fn signNotZero(v : vec2f) -> vec2f {
+    return select(vec2f(-1.0), vec2f(1.0), v >= vec2f(0.0));
+}
+
+fn octEncode(n: vec3f) -> vec2f {
+    let p = n.xy / (abs(n.x) + abs(n.y) + abs(n.z));
+
+    if (n.z < 0.0) {
+        return (1.0 - abs(p.yx)) * signNotZero(p);
+    }
+
+    return p;
+}
+
+// expected range from -1 to 1
+fn octDecode(e: vec2f) -> vec3f {
+    var n = vec3f(e, 1.0 - abs(e.x) - abs(e.y));
+
+    if (n.z < 0.0) {
+        n = vec3f(
+            (1.0 - abs(n.yx)) * signNotZero(n.xy), 
+            n.z
+        );
+    }
+
+    return normalize(n);
+}
+
+fn transformWorldPos(p: vec2f, depth: f32, camera: CameraUniforms) -> vec3f {
+    // pixel -> ndc
+    let uv = (p + 0.5) / camera.screenSize;
+    let ndc = vec4f(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0);
+    let world = camera.invViewProjMat * ndc;
+    return world.xyz / world.w;
 }
