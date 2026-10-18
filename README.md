@@ -79,11 +79,11 @@ The toon shader composes an extra lighting pass that writes to an rgba16float te
 
 Deferred clustered renderer with single lighting compute shader optimization and toon shader post processing (5000 lights)
 
-<img width="619" height="461" alt="image" src="https://github.com/user-attachments/assets/857c1440-90aa-4527-b43b-b9044b0a86ee" />
+<img width="1238" height="922" alt="image" src="https://github.com/user-attachments/assets/aa2e6e1a-ef65-4004-8f75-1216b569b8a6" />
 
 Deferred clustered renderer with optimization and no post processing (5000 lights)
 
-<img width="617" height="446" alt="image" src="https://github.com/user-attachments/assets/88a726e5-579c-4baf-b95f-27a624032f79" />
+<img width="1234" height="892" alt="image" src="https://github.com/user-attachments/assets/042cdb2a-8671-40ce-82a2-77d0d9361757" />
 
 Base deferred clustered renderer (5000 lights)
 
