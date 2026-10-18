@@ -77,6 +77,8 @@ The toon shader composes an extra lighting pass that writes to an rgba16float te
 
 <img width="992" height="638" alt="image" src="https://github.com/user-attachments/assets/d8ad47f9-5860-4a93-94de-05e3c28cde9f" />
 
+### Effects on Performance
+
 Deferred clustered renderer with single lighting compute shader optimization and toon shader post processing (5000 lights)
 
 <img width="1238" height="922" alt="image" src="https://github.com/user-attachments/assets/aa2e6e1a-ef65-4004-8f75-1216b569b8a6" />
