@@ -65,6 +65,8 @@ Visibly, the naive renderer struggled significantly.  The consistent red bars ap
 
 Using the painting and rendering as a good approximate for the frame counter, the ratio of painting is roughly 14-7.4-1 and the ratio of rendering is roughly 15.5-7.4-1 (deferred, forward+, naive respectively).  We can observe how the naive renderer was roughly 4 FPS, with each frame taking approximately 250 ms of GPU time, which is extremely unideal.  The forward+ renderer is an improvement, but is still visibly affected by overdraws and shading an unnecessary amount of fragments.  The deferred renderer was most consistent and verified the effectiveness of clustering in fixing the light-scaling issue and single shading pass per visible pixel.
 
+<img width="992" height="638" alt="image" src="https://github.com/user-attachments/assets/d8ad47f9-5860-4a93-94de-05e3c28cde9f" />
+
 ## Additional Features
 
 ### G-Buffer Optimization
