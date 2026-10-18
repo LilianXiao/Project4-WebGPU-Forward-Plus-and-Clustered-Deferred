@@ -12,9 +12,13 @@ Intel(R) Arc(TM) Graphics (128 MB) (Personal Laptop)
 
 See the live Github page [here](https://lilianxiao.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred/).
 
-### Deferred Clustered Renderer Demo Video
+# Deferred Clustered Renderer Demo Video
 
 https://github.com/user-attachments/assets/a0487931-3bd7-49ab-a0d1-9f09c3ff3879
+
+# Toon Shader Post-Processing Demo Video
+
+https://github.com/user-attachments/assets/e1c7062a-5f42-451f-a814-c599907563ec
 
 ## Exploring different rendering techniques with WebGPU
 
@@ -29,6 +33,14 @@ Forward+ rendering presents a clustering method by inserting a compute pass befo
 This is already a great improvement, scaling by roughly number of clusters times the number of lights, but this doesn't fix the formerly mentioned excess work being done to shade unnecessary fragments.
 
 Deferred clustered rendering leverages the geometry buffer to "precompute"/prepare the position, normal, and albedo (base color) information for each fragment, which are pushed into this g-buffer.  The first pass is thus the g-buffer pass, which writes to these three respective textures.  Then, the second pass is a fullscreen shader, and this technique uses the same clustering method as with forward+.  Despite the depth of the scene, this technique guarantees that with the small overhead of writing to a couple of textures, overdraw will be removed from the equation.  Of course, the most desirable renderer depends on the scene.  It wouldn't be surprising to see the deferred clustered renderer actually being slower than forward+ for a scene with a trivial light count.
+
+### Additional Features
+
+## G-Buffer Optimization
+
+Currently, the g-buffer stores 72 bytes of data per pixel, distributed as: position (16 bytes), normals (8 bytes), and albedo (4 bytes), with additional padding.  A useful optimization would then be to reduce a lot of this unnecessary space.  The optimization goal is to fit everything into one rg32uint texture, which will be 8 bytes per pixel.
+
+
 
 ### Credits
 
